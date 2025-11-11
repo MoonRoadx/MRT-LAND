@@ -1,0 +1,524 @@
+import React, { useState, useEffect, useRef } from 'react';
+
+const PacManGame = () => {
+  const canvasRef = useRef(null);
+  const [score, setScore] = useState(0);
+  const [level, setLevel] = useState(1);
+  const [lives, setLives] = useState(3);
+  const [gameOver, setGameOver] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [levelComplete, setLevelComplete] = useState(false);
+  const gameStateRef = useRef({
+    pacman: { x: 1, y: 1, direction: 'right', nextDirection: 'right' },
+    ghosts: [],
+    dots: [],
+    powerPellets: [],
+    score: 0,
+    level: 1,
+    lives: 3,
+    ghostSpeed: 150,
+    powerMode: false,
+    powerModeTimer: 0
+  });
+
+  const CELL_SIZE = 20;
+  const GRID_WIDTH = 15;
+  const GRID_HEIGHT = 15;
+
+  const mazes = [
+    [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+      [1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,0,1,1,1,0,1,1,1,0,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,0,1,1,1,1,1,0,1,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,0,1,1,0,1,0,1,1,0,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ],
+    [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+      [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+      [1,0,1,0,1,1,1,1,1,1,1,0,1,0,1],
+      [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+      [1,1,1,0,1,1,0,1,0,1,1,0,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,0,1,1,1,1,1,0,1,1,0,1],
+      [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+      [1,0,1,0,1,1,0,1,0,1,1,0,1,0,1],
+      [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+      [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ],
+    [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+      [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
+      [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+      [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,0,1,0,1,1,1,0,1,0,1,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+      [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,0,1,1,1,1,1,1,1,0,1,0,1],
+      [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+      [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ],
+    [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,0,1,1,1,1,1,1,1,0,1,0,1],
+      [1,0,1,0,0,0,0,1,0,0,0,0,1,0,1],
+      [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,0,1,0,1,1,1,1,0,1],
+      [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,0,1,0,1,1,1,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+      [1,0,1,0,0,0,0,1,0,0,0,0,1,0,1],
+      [1,0,1,0,1,1,1,1,1,1,1,0,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ],
+    [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+      [1,0,1,0,1,1,1,0,1,1,1,0,1,0,1],
+      [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+      [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+      [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+      [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+      [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+      [1,0,1,0,1,1,1,0,1,1,1,0,1,0,1],
+      [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ]
+  ];
+
+  const initializeLevel = (levelNum) => {
+    const maze = mazes[Math.min(levelNum - 1, mazes.length - 1)];
+    const dots = [];
+    const powerPellets = [];
+    
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+      for (let x = 0; x < GRID_WIDTH; x++) {
+        if (maze[y][x] === 0) {
+          if ((x === 1 && y === 1) || (x === 13 && y === 1) || (x === 1 && y === 13) || (x === 13 && y === 13)) {
+            powerPellets.push({ x, y, eaten: false });
+          } else {
+            dots.push({ x, y, eaten: false });
+          }
+        }
+      }
+    }
+
+    const numGhosts = Math.min(2 + levelNum, 6);
+    const ghostSpeed = Math.max(250 - (levelNum - 1) * 20, 150);
+    
+    const ghosts = [];
+    const startPositions = [
+      { x: 13, y: 1 }, { x: 1, y: 13 }, { x: 13, y: 13 }, 
+      { x: 7, y: 7 }, { x: 3, y: 3 }, { x: 11, y: 11 }
+    ];
+    
+    for (let i = 0; i < numGhosts; i++) {
+      ghosts.push({
+        ...startPositions[i],
+        direction: ['left', 'right', 'up', 'down'][Math.floor(Math.random() * 4)]
+      });
+    }
+
+    gameStateRef.current = {
+      pacman: { x: 1, y: 1, direction: 'right', nextDirection: 'right' },
+      ghosts,
+      dots,
+      powerPellets,
+      score: gameStateRef.current.score,
+      level: levelNum,
+      lives: gameStateRef.current.lives,
+      ghostSpeed,
+      powerMode: false,
+      powerModeTimer: 0
+    };
+  };
+
+  useEffect(() => {
+    if (gameStarted) {
+      initializeLevel(level);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!gameStarted || gameOver || levelComplete) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const maze = mazes[Math.min(level - 1, mazes.length - 1)];
+
+    const gameLoop = setInterval(() => {
+      const state = gameStateRef.current;
+
+      if (state.powerMode) {
+        state.powerModeTimer--;
+        if (state.powerModeTimer <= 0) {
+          state.powerMode = false;
+        }
+      }
+
+      state.pacman.direction = state.pacman.nextDirection;
+
+      let newX = state.pacman.x;
+      let newY = state.pacman.y;
+
+      switch (state.pacman.direction) {
+        case 'up': newY--; break;
+        case 'down': newY++; break;
+        case 'left': newX--; break;
+        case 'right': newX++; break;
+      }
+
+      if (maze[newY] && maze[newY][newX] === 0) {
+        state.pacman.x = newX;
+        state.pacman.y = newY;
+      }
+
+      const dotIndex = state.dots.findIndex(
+        dot => !dot.eaten && dot.x === state.pacman.x && dot.y === state.pacman.y
+      );
+      if (dotIndex !== -1) {
+        state.dots[dotIndex].eaten = true;
+        state.score += 10;
+        setScore(state.score);
+      }
+
+      const pelletIndex = state.powerPellets.findIndex(
+        pellet => !pellet.eaten && pellet.x === state.pacman.x && pellet.y === state.pacman.y
+      );
+      if (pelletIndex !== -1) {
+        state.powerPellets[pelletIndex].eaten = true;
+        state.score += 50;
+        state.powerMode = true;
+        state.powerModeTimer = 50;
+        setScore(state.score);
+      }
+
+      const allEaten = state.dots.every(dot => dot.eaten) && state.powerPellets.every(p => p.eaten);
+      if (allEaten) {
+        setLevelComplete(true);
+        return;
+      }
+
+      state.ghosts.forEach(ghost => {
+        const directions = ['up', 'down', 'left', 'right'];
+        const validDirections = directions.filter(dir => {
+          let testX = ghost.x;
+          let testY = ghost.y;
+          switch (dir) {
+            case 'up': testY--; break;
+            case 'down': testY++; break;
+            case 'left': testX--; break;
+            case 'right': testX++; break;
+          }
+          return maze[testY] && maze[testY][testX] === 0;
+        });
+
+        if (validDirections.length > 0) {
+          if (Math.random() < 0.3) {
+            ghost.direction = validDirections[Math.floor(Math.random() * validDirections.length)];
+          } else if (!validDirections.includes(ghost.direction)) {
+            ghost.direction = validDirections[Math.floor(Math.random() * validDirections.length)];
+          }
+        }
+
+        switch (ghost.direction) {
+          case 'up': ghost.y--; break;
+          case 'down': ghost.y++; break;
+          case 'left': ghost.x--; break;
+          case 'right': ghost.x++; break;
+        }
+
+        if (ghost.x === state.pacman.x && ghost.y === state.pacman.y) {
+          if (state.powerMode) {
+            ghost.x = 7;
+            ghost.y = 7;
+            state.score += 200;
+            setScore(state.score);
+          } else {
+            state.lives--;
+            setLives(state.lives);
+            if (state.lives <= 0) {
+              setGameOver(true);
+            } else {
+              state.pacman.x = 1;
+              state.pacman.y = 1;
+            }
+          }
+        }
+      });
+
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let y = 0; y < GRID_HEIGHT; y++) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+          if (maze[y][x] === 1) {
+            ctx.fillStyle = level === 1 ? '#0000FF' : level === 2 ? '#8B00FF' : level === 3 ? '#FF4500' : level === 4 ? '#00CED1' : '#FF1493';
+            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          }
+        }
+      }
+
+      state.dots.forEach(dot => {
+        if (!dot.eaten) {
+          ctx.fillStyle = '#FFD700';
+          ctx.beginPath();
+          ctx.arc(
+            dot.x * CELL_SIZE + CELL_SIZE / 2,
+            dot.y * CELL_SIZE + CELL_SIZE / 2,
+            2,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+      });
+
+      state.powerPellets.forEach(pellet => {
+        if (!pellet.eaten) {
+          ctx.fillStyle = '#FFF';
+          ctx.beginPath();
+          ctx.arc(
+            pellet.x * CELL_SIZE + CELL_SIZE / 2,
+            pellet.y * CELL_SIZE + CELL_SIZE / 2,
+            5,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+      });
+
+      ctx.fillStyle = state.powerMode ? '#FFD700' : '#FFFF00';
+      ctx.beginPath();
+      ctx.arc(
+        state.pacman.x * CELL_SIZE + CELL_SIZE / 2,
+        state.pacman.y * CELL_SIZE + CELL_SIZE / 2,
+        CELL_SIZE / 2 - 2,
+        0.2 * Math.PI,
+        1.8 * Math.PI
+      );
+      ctx.lineTo(
+        state.pacman.x * CELL_SIZE + CELL_SIZE / 2,
+        state.pacman.y * CELL_SIZE + CELL_SIZE / 2
+      );
+      ctx.fill();
+
+      state.ghosts.forEach(ghost => {
+        const centerX = ghost.x * CELL_SIZE + CELL_SIZE / 2;
+        const centerY = ghost.y * CELL_SIZE + CELL_SIZE / 2;
+        
+        ctx.fillStyle = state.powerMode ? '#8B4513' : '#654321';
+        
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY + 3, 6, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.ellipse(centerX - 1, centerY, 5, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.ellipse(centerX + 1, centerY - 3, 4, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        if (!state.powerMode) {
+          ctx.fillStyle = '#FFF';
+          ctx.beginPath();
+          ctx.arc(centerX - 2, centerY - 1, 1.5, 0, Math.PI * 2);
+          ctx.arc(centerX + 2, centerY - 1, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.fillStyle = '#000';
+          ctx.beginPath();
+          ctx.arc(centerX - 2, centerY - 1, 0.8, 0, Math.PI * 2);
+          ctx.arc(centerX + 2, centerY - 1, 0.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+    }, gameStateRef.current.ghostSpeed);
+
+    return () => clearInterval(gameLoop);
+  }, [gameStarted, gameOver, levelComplete, level]);
+
+  const handleKeyPress = (e) => {
+    if (!gameStarted) return;
+    
+    const state = gameStateRef.current;
+    switch (e.key) {
+      case 'ArrowUp':
+        e.preventDefault();
+        state.pacman.nextDirection = 'up';
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        state.pacman.nextDirection = 'down';
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        state.pacman.nextDirection = 'left';
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        state.pacman.nextDirection = 'right';
+        break;
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [gameStarted]);
+
+  const startGame = () => {
+    setGameStarted(true);
+    setGameOver(false);
+    setLevelComplete(false);
+    setScore(0);
+    setLevel(1);
+    setLives(3);
+    initializeLevel(1);
+  };
+
+  const nextLevel = () => {
+    const newLevel = level + 1;
+    setLevel(newLevel);
+    setLevelComplete(false);
+    initializeLevel(newLevel);
+  };
+
+  const handleButtonPress = (direction) => {
+    if (!gameStarted) return;
+    gameStateRef.current.pacman.nextDirection = direction;
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-2">
+      <div className="bg-gray-800 p-3 rounded-lg shadow-2xl w-full max-w-md">
+        <h1 className="text-3xl font-bold text-yellow-400 mb-3 text-center">MRT - LAND</h1>
+        
+        <div className="mb-3 flex justify-between items-center text-white text-sm px-2">
+          <div className="font-bold">💰 {score}</div>
+          <div className="font-bold">🎯 Niv.{level}</div>
+          <div className="font-bold">{'❤️'.repeat(lives)}</div>
+        </div>
+
+        <div className="flex justify-center mb-3">
+          <canvas
+            ref={canvasRef}
+            width={GRID_WIDTH * CELL_SIZE}
+            height={GRID_HEIGHT * CELL_SIZE}
+            className="border-4 border-blue-600 rounded"
+            style={{ touchAction: 'none' }}
+          />
+        </div>
+
+        {levelComplete && (
+          <div className="text-center mb-3 bg-green-900 p-3 rounded">
+            <p className="text-2xl font-bold text-green-400 mb-2">NIVEAU TERMINÉ!</p>
+            <p className="text-lg text-white mb-3">Score: {score}</p>
+            <button
+              onClick={nextLevel}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg w-full"
+            >
+              NIVEAU SUIVANT ➜
+            </button>
+          </div>
+        )}
+
+        {gameOver && (
+          <div className="text-center mb-3 bg-red-900 p-3 rounded">
+            <p className="text-2xl font-bold text-red-400 mb-2">GAME OVER!</p>
+            <p className="text-lg text-white mb-1">Score: {score}</p>
+            <p className="text-md text-gray-300 mb-3">Niveau: {level}</p>
+          </div>
+        )}
+
+        {!gameStarted && !gameOver && !levelComplete && (
+          <div className="text-center mb-3 bg-gray-700 p-3 rounded text-sm">
+            <p className="text-white mb-2">🎮 5 niveaux progressifs</p>
+            <p className="text-gray-300 mb-1">⚪ Gros points = Power-up!</p>
+            <p className="text-gray-400 text-xs">💩 deviennent comestibles</p>
+          </div>
+        )}
+
+        <div className="flex justify-center mb-3">
+          {(!gameStarted || gameOver) && !levelComplete && (
+            <button
+              onClick={startGame}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg text-xl w-full"
+            >
+              {gameOver ? '🔄 REJOUER' : '▶️ JOUER'}
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto mb-2">
+          <div></div>
+          <button
+            onPointerDown={() => handleButtonPress('up')}
+            className="bg-blue-500 active:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg text-2xl"
+          >
+            ▲
+          </button>
+          <div></div>
+          <button
+            onPointerDown={() => handleButtonPress('left')}
+            className="bg-blue-500 active:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg text-2xl"
+          >
+            ◄
+          </button>
+          <div></div>
+          <button
+            onPointerDown={() => handleButtonPress('right')}
+            className="bg-blue-500 active:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg text-2xl"
+          >
+            ►
+          </button>
+          <div></div>
+          <button
+            onPointerDown={() => handleButtonPress('down')}
+            className="bg-blue-500 active:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg text-2xl"
+          >
+            ▼
+          </button>
+          <div></div>
+        </div>
+
+        <div className="text-center text-xs text-gray-500 mt-2">
+          Collectez tous les points pour avancer! 🎯
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PacManGame;
